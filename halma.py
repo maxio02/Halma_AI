@@ -1,3 +1,5 @@
+import os
+os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = "hide"
 import pygame
 import pygame.gfxdraw
 import numpy as np
@@ -8,7 +10,6 @@ from constants import GAME_BOARD_SIZE, CAMP_SIZE
 player_1_pieces = set()
 player_2_pieces = set()
 player_pieces = [0, player_1_pieces, player_2_pieces]
-
 
 def fill_halma_board(board):
     global player_1_pieces, player_2_pieces
@@ -100,25 +101,6 @@ def move_piece(from_pos, to_pos, player):
     game_board[to_pos] = player
 
 
-def check_for_win_conditions(board):
-    triangle_size = 6
-
-    if get_count_of_pieces_in_goal(board, 2) == 19:
-        return 1
-
-    winning_pieces = 0
-    for i in range(GAME_BOARD_SIZE - 1, GAME_BOARD_SIZE - 1- triangle_size, -1):
-        for j in range(GAME_BOARD_SIZE - 1, GAME_BOARD_SIZE - 1- i % 10 - 1, -1):
-            if i == 10 or j == 10:
-                break
-            if board[i][j] == 1:
-                winning_pieces += 1
-    if winning_pieces == 19:
-        return 2
-
-    return 0
-
-
 def end_game(winner):
     winning_font = pygame.font.SysFont('Comic Sans MS', 150)
     match winner:
@@ -128,7 +110,94 @@ def end_game(winner):
             text_surface = winning_font.render('WHITE WON', False, (0, 0, 0))
     screen.blit(text_surface, (0, 500))
 
+# def game_is_running():
+#     if 
+def play_cmd_move(is_first_to_move = True, player = 1, depth = 2):
 
+    def play_move_and_print_to_cmd():
+        from_pos, to_pos = choose_best_move(player_pieces, player, depth)
+        draw_background(cell_size)
+        move_piece(from_pos, to_pos, player)
+        draw_grid(GAME_BOARD_SIZE + 1, GAME_BOARD_SIZE + 1, width / GAME_BOARD_SIZE , 0)
+        draw_board(game_board, width / GAME_BOARD_SIZE )
+        print(str(from_pos[1]*GAME_BOARD_SIZE + from_pos[0]) + ' ' + str(to_pos[1]*GAME_BOARD_SIZE + to_pos[0]))
+        pygame.display.flip()
+
+    def play_move_from_cmd_input():
+        new_move = input()
+        from_pos, to_pos = new_move.split(' ')
+        from_pos = (int(from_pos)%GAME_BOARD_SIZE, int(from_pos)//GAME_BOARD_SIZE)
+        to_pos = (int(to_pos)%GAME_BOARD_SIZE, int(to_pos)// GAME_BOARD_SIZE)
+        move_piece(from_pos, to_pos, 2 if 1 else 1)
+        draw_grid(GAME_BOARD_SIZE + 1, GAME_BOARD_SIZE + 1, width / GAME_BOARD_SIZE , 0)
+        draw_board(game_board, width / GAME_BOARD_SIZE )
+
+    if is_first_to_move:
+        play_move_and_print_to_cmd()
+        play_move_from_cmd_input()
+    else:
+        play_move_from_cmd_input()
+        play_move_and_print_to_cmd()
+
+def handle_pygame_inputs():
+    global running
+    global dragging
+    global last_mouse_position
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            running = False
+        elif event.type == pygame.MOUSEBUTTONDOWN:
+            if event.button == 1:  # Left click pushed
+                dragging = True
+
+                mouse_x, mouse_y = event.pos
+                handle_pygame_inputs.picked_up_cell = (int(mouse_x // (width / GAME_BOARD_SIZE )), int(mouse_y // (width / GAME_BOARD_SIZE )))
+                handle_pygame_inputs.picked_up = game_board[handle_pygame_inputs.picked_up_cell[0]][handle_pygame_inputs.picked_up_cell[1]]
+                if game_board[handle_pygame_inputs.picked_up_cell[0]][handle_pygame_inputs.picked_up_cell[1]] != 0:
+                    handle_pygame_inputs.valid_moves = get_valid_moves(player_pieces, handle_pygame_inputs.picked_up_cell)
+                    game_board[handle_pygame_inputs.picked_up_cell[0]][handle_pygame_inputs.picked_up_cell[1]] = 0
+
+
+        elif event.type == pygame.MOUSEBUTTONUP:
+            if event.button == 1:  # Left click released
+                dragging = False
+
+                mouse_x, mouse_y = event.pos
+                cell_x, cell_y = int(mouse_x // (width / GAME_BOARD_SIZE )), int(mouse_y // (width / GAME_BOARD_SIZE ))
+                if (cell_x, cell_y) in handle_pygame_inputs.valid_moves:
+                    game_board[cell_x, cell_y] = handle_pygame_inputs.picked_up
+                    move_piece(handle_pygame_inputs.picked_up_cell, (cell_x, cell_y), handle_pygame_inputs.picked_up)
+                    from_pos, to_pos = choose_best_move(player_pieces, 2, depth=1  )
+                    move_piece(from_pos, to_pos, 2)
+                    draw_grid(GAME_BOARD_SIZE + 1, GAME_BOARD_SIZE + 1, width / GAME_BOARD_SIZE , 0)
+
+                else:
+                    game_board[handle_pygame_inputs.picked_up_cell[0]][handle_pygame_inputs.picked_up_cell[1]] = handle_pygame_inputs.picked_up
+        elif event.type == pygame.MOUSEMOTION:
+            last_mouse_position = event.pos
+
+    if dragging:
+        match handle_pygame_inputs.picked_up:
+            case 0:
+                pass
+            case 1:
+                draw_valid_moves(handle_pygame_inputs.valid_moves)
+                draw_grid(GAME_BOARD_SIZE + 1, GAME_BOARD_SIZE + 1, width / GAME_BOARD_SIZE , 0)
+                pygame.gfxdraw.filled_circle(screen, int(last_mouse_position[0]), int(last_mouse_position[1]),
+                                                int(cell_size * 0.5), (0, 0, 0))
+                pygame.gfxdraw.aacircle(screen, int(last_mouse_position[0]), int(last_mouse_position[1]),
+                                        int(cell_size * 0.5), (0, 0, 0))
+
+            case 2:
+                draw_valid_moves(handle_pygame_inputs.valid_moves)
+                draw_grid(GAME_BOARD_SIZE + 1, GAME_BOARD_SIZE + 1, width / GAME_BOARD_SIZE , 0)
+                pygame.gfxdraw.filled_circle(screen, int(last_mouse_position[0]), int(last_mouse_position[1]),
+                                                int(cell_size * 0.5), (255, 255, 255))
+                pygame.gfxdraw.aacircle(screen, int(last_mouse_position[0]), int(last_mouse_position[1]),
+                                        int(cell_size * 0.5), (255, 255, 255))
+handle_pygame_inputs.picked_up = 0
+handle_pygame_inputs.valid_moves = set()
+handle_pygame_inputs.picked_up_cell = (0,0)
 if __name__ == '__main__':
 
     pygame.init()
@@ -139,57 +208,19 @@ if __name__ == '__main__':
     game_board = np.zeros((GAME_BOARD_SIZE , GAME_BOARD_SIZE ), dtype=int)
     last_mouse_position = 0, 0
     cell_size = width / GAME_BOARD_SIZE 
-    picked_up = 0
 
     game_board = fill_halma_board(game_board)
-
-    valid_moves = set()
     clock = pygame.time.Clock()
     fps = 60
 
     while running:
 
         draw_background(cell_size)
-
         draw_board(game_board, width / GAME_BOARD_SIZE )
-
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                running = False
-            elif event.type == pygame.MOUSEBUTTONDOWN:
-                if event.button == 1:  # Left click pushed
-                    dragging = True
-
-                    mouse_x, mouse_y = event.pos
-                    picked_up_cell_x, picked_up_cell_y = int(mouse_x // (width / GAME_BOARD_SIZE )), int(mouse_y // (width / GAME_BOARD_SIZE ))
-                    picked_up = game_board[picked_up_cell_x, picked_up_cell_y]
-                    if game_board[picked_up_cell_x][picked_up_cell_y] != 0:
-                        valid_moves = get_valid_moves(player_pieces, (picked_up_cell_x, picked_up_cell_y))
-                        game_board[picked_up_cell_x, picked_up_cell_y] = 0
+        draw_grid(GAME_BOARD_SIZE + 1, GAME_BOARD_SIZE + 1, width / GAME_BOARD_SIZE , 0)
 
 
-            elif event.type == pygame.MOUSEBUTTONUP:
-                if event.button == 1:  # Left click released
-                    dragging = False
-
-                    mouse_x, mouse_y = event.pos
-                    cell_x, cell_y = int(mouse_x // (width / GAME_BOARD_SIZE )), int(mouse_y // (width / GAME_BOARD_SIZE ))
-                    if (cell_x, cell_y) in valid_moves:
-                        game_board[cell_x, cell_y] = picked_up
-                        move_piece((picked_up_cell_x, picked_up_cell_y), (cell_x, cell_y), picked_up)
-                        winner = check_for_win_conditions(game_board)
-                        if winner in {1, 2}:
-                            end_game(winner)
-                        from_pos, to_pos = choose_best_move(player_pieces, 2, depth=1  )
-                        move_piece(from_pos, to_pos, 2)
-                        draw_grid(GAME_BOARD_SIZE + 1, GAME_BOARD_SIZE + 1, width / GAME_BOARD_SIZE , 0)
-
-                    else:
-                        game_board[picked_up_cell_x][picked_up_cell_y] = picked_up
-            elif event.type == pygame.MOUSEMOTION:
-                last_mouse_position = event.pos
-
-        from_pos, to_pos = choose_best_move(player_pieces, 2, depth=3)
+        from_pos, to_pos = choose_best_move(player_pieces, 2, depth=1)
         move_piece(from_pos, to_pos, 2)
         draw_grid(GAME_BOARD_SIZE + 1, GAME_BOARD_SIZE + 1, width / GAME_BOARD_SIZE , 0)
         pygame.display.flip()
@@ -198,29 +229,11 @@ if __name__ == '__main__':
         draw_board(game_board, width / GAME_BOARD_SIZE )
         from_pos, to_pos = choose_best_move(player_pieces, 1, depth=3)
         move_piece(from_pos, to_pos, 1)
+        handle_pygame_inputs()
 
+        # play_cmd_move(depth=3)
 
         draw_grid(GAME_BOARD_SIZE + 1, GAME_BOARD_SIZE + 1, width / GAME_BOARD_SIZE , 0)
-        if dragging:
-            match picked_up:
-                case 0:
-                    pass
-                case 1:
-                    draw_valid_moves(valid_moves)
-                    draw_grid(GAME_BOARD_SIZE + 1, GAME_BOARD_SIZE + 1, width / GAME_BOARD_SIZE , 0)
-                    pygame.gfxdraw.filled_circle(screen, int(last_mouse_position[0]), int(last_mouse_position[1]),
-                                                 int(cell_size * 0.5), (0, 0, 0))
-                    pygame.gfxdraw.aacircle(screen, int(last_mouse_position[0]), int(last_mouse_position[1]),
-                                            int(cell_size * 0.5), (0, 0, 0))
-
-                case 2:
-                    draw_valid_moves(valid_moves)
-                    draw_grid(GAME_BOARD_SIZE + 1, GAME_BOARD_SIZE + 1, width / GAME_BOARD_SIZE , 0)
-                    pygame.gfxdraw.filled_circle(screen, int(last_mouse_position[0]), int(last_mouse_position[1]),
-                                                 int(cell_size * 0.5), (255, 255, 255))
-                    pygame.gfxdraw.aacircle(screen, int(last_mouse_position[0]), int(last_mouse_position[1]),
-                                            int(cell_size * 0.5), (255, 255, 255))
-
         pygame.display.flip()
         clock.tick(fps)
 

@@ -1,18 +1,20 @@
 import math, copy, numpy as np
 from constants import GAME_BOARD_SIZE, CAMP_SIZE
-
-
+from fixedSizeOrderedDict import FixedSizeOrderedDict
+import random, time, sys
 player_1_starting_area = set(
     [(x, y) for x in range(CAMP_SIZE) for y in range(CAMP_SIZE - x) if x != (CAMP_SIZE - 1) and y != (CAMP_SIZE - 1)])
 player_2_starting_area = set(
     [(x, y) for x in range(GAME_BOARD_SIZE - 1, GAME_BOARD_SIZE - 1 - CAMP_SIZE, -1) for y in range(GAME_BOARD_SIZE - 1, GAME_BOARD_SIZE - 1 - x % (GAME_BOARD_SIZE - CAMP_SIZE) - 1, -1) if x != (GAME_BOARD_SIZE - CAMP_SIZE) and y != (GAME_BOARD_SIZE - CAMP_SIZE)])
 player_bases = (0, player_1_starting_area, player_2_starting_area)
-calculated_heuristic_values = dict()
+calculated_heuristic_values = FixedSizeOrderedDict(max=2000000)
 max_length_to_corner = sum([(0 - x) ** 2 + (0 - y) ** 2 for x, y in player_bases[2]])
 min_length_to_corner = sum([(0 - x) ** 2 + (0 - y) ** 2 for x, y in player_bases[1]])
+heuristical_values_skipped = 0
+heuristical_values_calculated = 0
 def get_opponent(player):
     return 2 if player == 1 else 1
-
+#try to remember some of the moves
 
 def get_count_of_pieces_in_goal(piece_positions, player):
     return len(player_bases[get_opponent(player)].intersection(piece_positions[player]))
@@ -80,20 +82,27 @@ def mobility_heuristic(piece_positions, player):
 
 
 def get_heuristic_value_for_move(piece_positions, player):
+    global heuristical_values_skipped
+    global heuristical_values_calculated
     # Weights
     hashable_board = (tuple(piece_positions[1]), tuple(piece_positions[2]), player)
     if hashable_board not in calculated_heuristic_values:
         w1, w2, w3 = 1, 2, 0.02
         normalized_h1 = distance_heuristic_corner(piece_positions, player) / (max_length_to_corner)
         normalized_h2 = piece_count_heuristic(piece_positions, player) / len(player_1_starting_area)
-        # normalized_h3 = mobility_heuristic(piece_positions, player) / 120 #TODO standardize this value
-        score = (w1 * (1 - normalized_h1) + w2 * normalized_h2)
+        normalized_h3 = mobility_heuristic(piece_positions, player) / 120 #TODO standardize this value
+        # + 
+        score = (w1 * (1 - normalized_h1) + w2 * normalized_h2 + w3 * normalized_h3)
         calculated_heuristic_values[hashable_board] = score
+        heuristical_values_calculated += 1
         return score
     else:
+        heuristical_values_skipped += 1
         return calculated_heuristic_values[hashable_board]
+    
 
-
+def get_random_heuristic_value():
+    return random.random()
 
 def minimax(piece_positions, depth, is_maximizing, player):
     if depth == 0:
@@ -116,8 +125,10 @@ def minimax(piece_positions, depth, is_maximizing, player):
 # https://en.wikipedia.org/wiki/Minimax
 
 def alphabeta(piece_positions, depth, alpha, beta, is_maximizing, player):
+
     if depth == 0:
         return  get_heuristic_value_for_move(piece_positions, get_opponent(player)), piece_positions
+        # return  get_random_heuristic_value() + get_heuristic_value_for_move(piece_positions, get_opponent(player)), piece_positions
 
     if is_maximizing:
         max_eval = float('-inf')
@@ -174,11 +185,18 @@ def apply_move(pieces: list, move, player):
 
 
 def choose_best_move(player_pieces, player, depth=2):
- 
+    global heuristical_values_calculated, heuristical_values_skipped
+    heuristical_values_calculated = 0
+    heuristical_values_skipped = 0
+    perf_t = time.perf_counter()
     score, best_move  = alphabeta(player_pieces, depth, float('-inf'), float('inf'), True, player)
+
     from_pos = player_pieces[player].difference(best_move[player])
     to_pos = best_move[player].difference(player_pieces[player])
-
+    print(f"Eval time: {(time.perf_counter() - perf_t):.5f}", file=sys.stderr)
+    print(f"Calculated nodes: {heuristical_values_calculated}", file=sys.stderr)
+    print(f"Skipped nodes: {heuristical_values_skipped}", file=sys.stderr)
     return (from_pos.pop(), to_pos.pop())
 
-    return best_move
+# def choose_random_move(player_pieces, player):
+    
