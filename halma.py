@@ -4,7 +4,7 @@ import pygame
 import pygame.gfxdraw
 import numpy as np
 import math
-from heuristics import choose_best_move, get_valid_moves, get_count_of_pieces_in_goal
+from heuristics import choose_best_move, get_valid_moves, get_count_of_pieces_in_goal, calculate_distances
 from constants import GAME_BOARD_SIZE, CAMP_SIZE
 
 player_1_pieces = set()
@@ -210,6 +210,7 @@ if __name__ == '__main__':
     cell_size = width / GAME_BOARD_SIZE 
 
     game_board = fill_halma_board(game_board)
+    calculate_distances()
     clock = pygame.time.Clock()
     fps = 60
 
@@ -227,7 +228,7 @@ if __name__ == '__main__':
         draw_background(cell_size)
 
         draw_board(game_board, width / GAME_BOARD_SIZE )
-        from_pos, to_pos = choose_best_move(player_pieces, 1, depth=3)
+        from_pos, to_pos = choose_best_move(player_pieces, 1, depth=1)
         move_piece(from_pos, to_pos, 1)
         handle_pygame_inputs()
 

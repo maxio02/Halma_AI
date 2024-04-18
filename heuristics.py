@@ -8,14 +8,24 @@ player_2_starting_area = set(
     [(x, y) for x in range(GAME_BOARD_SIZE - 1, GAME_BOARD_SIZE - 1 - CAMP_SIZE, -1) for y in range(GAME_BOARD_SIZE - 1, GAME_BOARD_SIZE - 1 - x % (GAME_BOARD_SIZE - CAMP_SIZE) - 1, -1) if x != (GAME_BOARD_SIZE - CAMP_SIZE) and y != (GAME_BOARD_SIZE - CAMP_SIZE)])
 player_bases = (0, player_1_starting_area, player_2_starting_area)
 calculated_heuristic_values = FixedSizeOrderedDict(max=2000000)
-max_length_to_corner = sum([(0 - x) ** 2 + (0 - y) ** 2 for x, y in player_bases[2]])
-min_length_to_corner = sum([(0 - x) ** 2 + (0 - y) ** 2 for x, y in player_bases[1]])
+max_length_to_corner = sum([math.sqrt((0 - x) ** 2 + (0 - y) ** 2) for x, y in player_bases[2]])
+min_length_to_corner = sum([math.sqrt((0 - x) ** 2 + (0 - y) ** 2) for x, y in player_bases[1]])
 heuristical_values_skipped = 0
 heuristical_values_calculated = 0
+precalculated_distances: dict[tuple[tuple[int, int], int], float] = dict()
+
+def calculate_distances():
+    global precalculated_distances
+    for player in range(1,3):
+        goal_x, goal_y = (GAME_BOARD_SIZE - 1, GAME_BOARD_SIZE - 1) if player == 1 else (0, 0)
+        for cell in [(x,y) for x in range(0, GAME_BOARD_SIZE) for y in range(0,GAME_BOARD_SIZE)]:
+            precalculated_distances[cell,player] = math.sqrt((goal_x - cell[0]) ** 2 + (goal_y - cell[1]) ** 2) / max_length_to_corner
+
+
 def get_opponent(player):
     return 2 if player == 1 else 1
 #try to remember some of the moves
-
+#sort alphabesta
 def get_count_of_pieces_in_goal(piece_positions, player):
     return len(player_bases[get_opponent(player)].intersection(piece_positions[player]))
 
@@ -65,12 +75,11 @@ def distance_heuristic_best_spot(piece_positions, player):
 
 
 def distance_heuristic_corner(piece_positions, player):
+    global precalculated_distances
     total_distance = 0
-    goal_x, goal_y = (GAME_BOARD_SIZE - 1, GAME_BOARD_SIZE - 1) if player == 1 else (0, 0)
-
-    for x, y in piece_positions[player]:
-        total_distance += (goal_x - x) ** 2 + (goal_y - y) ** 2
-
+    for cell in piece_positions[player]:
+        total_distance += precalculated_distances[cell, player]
+    
     return total_distance 
 
 def piece_count_heuristic(piece_positions, player):
@@ -88,7 +97,7 @@ def get_heuristic_value_for_move(piece_positions, player):
     hashable_board = (tuple(piece_positions[1]), tuple(piece_positions[2]), player)
     if hashable_board not in calculated_heuristic_values:
         w1, w2, w3 = 1, 2, 0.02
-        normalized_h1 = distance_heuristic_corner(piece_positions, player) / (max_length_to_corner)
+        normalized_h1 = distance_heuristic_corner(piece_positions, player)
         normalized_h2 = piece_count_heuristic(piece_positions, player) / len(player_1_starting_area)
         normalized_h3 = mobility_heuristic(piece_positions, player) / 120 #TODO standardize this value
         # + 
@@ -193,9 +202,12 @@ def choose_best_move(player_pieces, player, depth=2):
 
     from_pos = player_pieces[player].difference(best_move[player])
     to_pos = best_move[player].difference(player_pieces[player])
-    print(f"Eval time: {(time.perf_counter() - perf_t):.5f}", file=sys.stderr)
+    eval_time = time.perf_counter() - perf_t
+    print(f"Eval time: {eval_time:.3f}", file=sys.stderr)
+    print(f"Avg time per move: {(eval_time/(heuristical_values_skipped + heuristical_values_calculated)):.5f}", file=sys.stderr)
     print(f"Calculated nodes: {heuristical_values_calculated}", file=sys.stderr)
     print(f"Skipped nodes: {heuristical_values_skipped}", file=sys.stderr)
+    
     return (from_pos.pop(), to_pos.pop())
 
 # def choose_random_move(player_pieces, player):
