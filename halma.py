@@ -221,14 +221,14 @@ if __name__ == '__main__':
         draw_grid(GAME_BOARD_SIZE + 1, GAME_BOARD_SIZE + 1, width / GAME_BOARD_SIZE , 0)
 
 
-        from_pos, to_pos = choose_best_move(player_pieces, 2, depth=1)
+        from_pos, to_pos = choose_best_move(player_pieces, 2, depth=2)
         move_piece(from_pos, to_pos, 2)
         draw_grid(GAME_BOARD_SIZE + 1, GAME_BOARD_SIZE + 1, width / GAME_BOARD_SIZE , 0)
         pygame.display.flip()
         draw_background(cell_size)
 
         draw_board(game_board, width / GAME_BOARD_SIZE )
-        from_pos, to_pos = choose_best_move(player_pieces, 1, depth=1)
+        from_pos, to_pos = choose_best_move(player_pieces, 1, depth=2)
         move_piece(from_pos, to_pos, 1)
         handle_pygame_inputs()
 

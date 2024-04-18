@@ -136,19 +136,20 @@ def minimax(piece_positions, depth, is_maximizing, player):
 def alphabeta(piece_positions, depth, alpha, beta, is_maximizing, player):
 
     if depth == 0:
-        return  get_heuristic_value_for_move(piece_positions, get_opponent(player)), piece_positions
-        # return  get_random_heuristic_value() + get_heuristic_value_for_move(piece_positions, get_opponent(player)), piece_positions
+        return get_heuristic_value_for_move(piece_positions, get_opponent(player)), piece_positions
 
     if is_maximizing:
         max_eval = float('-inf')
         max_move = None
-        for move in get_all_valid_moves(piece_positions, player):
+        valid_moves = list(get_all_valid_moves(piece_positions, player))
+        valid_moves.sort(key=lambda move: get_heuristic_value_for_move(apply_move(piece_positions, move, player), player), reverse=True)
+        for move in valid_moves:
             evaluation, move = alphabeta(apply_move(piece_positions, move, player), depth - 1, alpha, beta, False, get_opponent(player))
-            if(evaluation > max_eval):
+            if evaluation > max_eval:
                 max_eval = evaluation
                 max_move = move
 
-            if max_eval > beta:
+            if max_eval >= beta:
                 break
             alpha = max(alpha, max_eval)
 
@@ -156,18 +157,20 @@ def alphabeta(piece_positions, depth, alpha, beta, is_maximizing, player):
     else:
         min_eval = float('inf')
         min_move = None
-        for move in get_all_valid_moves(piece_positions, player):
+        valid_moves = list(get_all_valid_moves(piece_positions, player))
+        valid_moves.sort(key=lambda move: get_heuristic_value_for_move(apply_move(piece_positions, move, player), player), reverse=True)
+        for move in valid_moves:
             evaluation, move = alphabeta(apply_move(piece_positions, move, player), depth - 1, alpha, beta, True, get_opponent(player))
-            if(evaluation < min_eval):
+            if evaluation < min_eval:
                 min_eval = evaluation
                 min_move = move
 
-            if min_eval < alpha:
+            if min_eval <= alpha:
                 break
             beta = min(beta, min_eval)
 
-
         return min_eval, min_move
+
 
 
 def get_all_valid_moves(piece_positions, player):
