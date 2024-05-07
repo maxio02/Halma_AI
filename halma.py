@@ -4,13 +4,13 @@ import pygame
 import pygame.gfxdraw
 import numpy as np
 import math
-from heuristics import choose_best_move, get_valid_moves, get_count_of_pieces_in_goal, calculate_distances
+from heuristics import choose_best_move, get_valid_moves, get_count_of_pieces_in_goal, calculate_distances, game_is_running
 from constants import GAME_BOARD_SIZE, CAMP_SIZE
 
 player_1_pieces = set()
 player_2_pieces = set()
 player_pieces = [0, player_1_pieces, player_2_pieces]
-
+py_game_interrupt = False
 def fill_halma_board(board):
     global player_1_pieces, player_2_pieces
 
@@ -28,10 +28,6 @@ def fill_halma_board(board):
             board[i][j] = 2
             player_2_pieces.add((i, j))
     return board
-
-
-def evaluate_next_move():
-    pass
 
 
 def draw_grid(rows, cols, cell_size, margin):
@@ -110,8 +106,7 @@ def end_game(winner):
             text_surface = winning_font.render('WHITE WON', False, (0, 0, 0))
     screen.blit(text_surface, (0, 500))
 
-# def game_is_running():
-#     if 
+# 
 def play_cmd_move(is_first_to_move = True, player = 1, depth = 2):
 
     def play_move_and_print_to_cmd():
@@ -140,12 +135,13 @@ def play_cmd_move(is_first_to_move = True, player = 1, depth = 2):
         play_move_and_print_to_cmd()
 
 def handle_pygame_inputs():
+    global py_game_interrupt
     global running
     global dragging
     global last_mouse_position
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
-            running = False
+            py_game_interrupt = True
         elif event.type == pygame.MOUSEBUTTONDOWN:
             if event.button == 1:  # Left click pushed
                 dragging = True
@@ -154,7 +150,7 @@ def handle_pygame_inputs():
                 handle_pygame_inputs.picked_up_cell = (int(mouse_x // (width / GAME_BOARD_SIZE )), int(mouse_y // (width / GAME_BOARD_SIZE )))
                 handle_pygame_inputs.picked_up = game_board[handle_pygame_inputs.picked_up_cell[0]][handle_pygame_inputs.picked_up_cell[1]]
                 if game_board[handle_pygame_inputs.picked_up_cell[0]][handle_pygame_inputs.picked_up_cell[1]] != 0:
-                    handle_pygame_inputs.valid_moves = get_valid_moves(player_pieces, handle_pygame_inputs.picked_up_cell)
+                    handle_pygame_inputs.valid_moves = get_valid_moves(player_pieces, handle_pygame_inputs.picked_up_cell, handle_pygame_inputs.picked_up)
                     game_board[handle_pygame_inputs.picked_up_cell[0]][handle_pygame_inputs.picked_up_cell[1]] = 0
 
 
@@ -167,7 +163,7 @@ def handle_pygame_inputs():
                 if (cell_x, cell_y) in handle_pygame_inputs.valid_moves:
                     game_board[cell_x, cell_y] = handle_pygame_inputs.picked_up
                     move_piece(handle_pygame_inputs.picked_up_cell, (cell_x, cell_y), handle_pygame_inputs.picked_up)
-                    from_pos, to_pos = choose_best_move(player_pieces, 2, depth=1  )
+                    from_pos, to_pos = choose_best_move(player_pieces, 2, depth=1)
                     move_piece(from_pos, to_pos, 2)
                     draw_grid(GAME_BOARD_SIZE + 1, GAME_BOARD_SIZE + 1, width / GAME_BOARD_SIZE , 0)
 
@@ -207,32 +203,39 @@ if __name__ == '__main__':
     dragging = False
     game_board = np.zeros((GAME_BOARD_SIZE , GAME_BOARD_SIZE ), dtype=int)
     last_mouse_position = 0, 0
-    cell_size = width / GAME_BOARD_SIZE 
+    cell_size = width / GAME_BOARD_SIZE
 
     game_board = fill_halma_board(game_board)
     calculate_distances()
     clock = pygame.time.Clock()
-    fps = 60
+    fps = 600
 
-    while running:
+    while game_is_running(player_pieces) and not py_game_interrupt:
 
         draw_background(cell_size)
         draw_board(game_board, width / GAME_BOARD_SIZE )
         draw_grid(GAME_BOARD_SIZE + 1, GAME_BOARD_SIZE + 1, width / GAME_BOARD_SIZE , 0)
 
+        # move = choose_best_move(player_pieces, 2, depth=2)
+        # if move is None:
+        #     break
+        # from_pos, to_pos = move
+        # move_piece(from_pos, to_pos, 2)
+        # draw_grid(GAME_BOARD_SIZE + 1, GAME_BOARD_SIZE + 1, width / GAME_BOARD_SIZE , 0)
+        # pygame.display.flip()
+        # draw_background(cell_size)
+        
+        # draw_board(game_board, width / GAME_BOARD_SIZE )
 
-        from_pos, to_pos = choose_best_move(player_pieces, 2, depth=2)
-        move_piece(from_pos, to_pos, 2)
-        draw_grid(GAME_BOARD_SIZE + 1, GAME_BOARD_SIZE + 1, width / GAME_BOARD_SIZE , 0)
-        pygame.display.flip()
-        draw_background(cell_size)
+        # move = choose_best_move(player_pieces, 1, depth=2)
+        # if move is None:
+        #     break
+        # from_pos, to_pos = move
+        # move_piece(from_pos, to_pos, 1)
+    
 
-        draw_board(game_board, width / GAME_BOARD_SIZE )
-        from_pos, to_pos = choose_best_move(player_pieces, 1, depth=2)
-        move_piece(from_pos, to_pos, 1)
         handle_pygame_inputs()
-
-        # play_cmd_move(depth=3)
+        # play_cmd_move(depth=2)
 
         draw_grid(GAME_BOARD_SIZE + 1, GAME_BOARD_SIZE + 1, width / GAME_BOARD_SIZE , 0)
         pygame.display.flip()
