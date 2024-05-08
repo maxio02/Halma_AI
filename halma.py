@@ -4,7 +4,7 @@ import pygame
 import pygame.gfxdraw
 import numpy as np
 import math
-from heuristics import choose_best_move, get_valid_moves, get_count_of_pieces_in_goal, calculate_distances, game_is_running
+from heuristics import choose_best_move, get_valid_moves, get_count_of_pieces_in_goal, calculate_distances, game_is_running, choose_random_move
 from constants import GAME_BOARD_SIZE, CAMP_SIZE
 
 player_1_pieces = set()
@@ -163,7 +163,7 @@ def handle_pygame_inputs():
                 if (cell_x, cell_y) in handle_pygame_inputs.valid_moves:
                     game_board[cell_x, cell_y] = handle_pygame_inputs.picked_up
                     move_piece(handle_pygame_inputs.picked_up_cell, (cell_x, cell_y), handle_pygame_inputs.picked_up)
-                    from_pos, to_pos = choose_best_move(player_pieces, 2, depth=1)
+                    from_pos, to_pos = choose_best_move(player_pieces, 2, depth=3)
                     move_piece(from_pos, to_pos, 2)
                     draw_grid(GAME_BOARD_SIZE + 1, GAME_BOARD_SIZE + 1, width / GAME_BOARD_SIZE , 0)
 
@@ -209,30 +209,34 @@ if __name__ == '__main__':
     calculate_distances()
     clock = pygame.time.Clock()
     fps = 600
-
+    input()
     while game_is_running(player_pieces) and not py_game_interrupt:
 
         draw_background(cell_size)
         draw_board(game_board, width / GAME_BOARD_SIZE )
         draw_grid(GAME_BOARD_SIZE + 1, GAME_BOARD_SIZE + 1, width / GAME_BOARD_SIZE , 0)
 
-        # move = choose_best_move(player_pieces, 2, depth=2)
-        # if move is None:
-        #     break
-        # from_pos, to_pos = move
-        # move_piece(from_pos, to_pos, 2)
-        # draw_grid(GAME_BOARD_SIZE + 1, GAME_BOARD_SIZE + 1, width / GAME_BOARD_SIZE , 0)
-        # pygame.display.flip()
-        # draw_background(cell_size)
+        move = choose_best_move(player_pieces, 2, depth=1)
+        if move is None:
+            break
+        from_pos, to_pos = move
+        move_piece(from_pos, to_pos, 2)
+        draw_grid(GAME_BOARD_SIZE + 1, GAME_BOARD_SIZE + 1, width / GAME_BOARD_SIZE , 0)
+        pygame.display.flip()
+        draw_background(cell_size)
         
-        # draw_board(game_board, width / GAME_BOARD_SIZE )
+        draw_board(game_board, width / GAME_BOARD_SIZE )
 
-        # move = choose_best_move(player_pieces, 1, depth=2)
-        # if move is None:
-        #     break
+        move = choose_best_move(player_pieces, 1, depth=1)
+        if move is None:
+            break
+        from_pos, to_pos = move
+        move_piece(from_pos, to_pos, 1)
+
+
+        # move = choose_random_move(player_pieces, 1)
         # from_pos, to_pos = move
         # move_piece(from_pos, to_pos, 1)
-    
 
         handle_pygame_inputs()
         # play_cmd_move(depth=2)

@@ -17,6 +17,7 @@ min_length_to_corner = sum([math.sqrt((0 - x) ** 2 + (0 - y) ** 2) for x, y in p
 heuristical_values_skipped = 0
 heuristical_values_calculated = 0
 move_calculations_skipped = 0
+total_calculations = 0
 turn = 0
 precalculated_distances: dict[tuple[tuple[int, int], int], float] = dict()
 
@@ -109,15 +110,13 @@ def mobility_heuristic(piece_positions, player):
 def get_heuristic_value_for_move(piece_positions):
     global heuristical_values_skipped
     global heuristical_values_calculated
-    # Weights
     hashable_board = tuple(piece_positions[1] | piece_positions[2])
     if hashable_board not in calculated_heuristic_values:
         w1, w2, w3 = 1, 5, 0.02
         normalized_h1 = (1-distance_heuristic_corner(piece_positions, 1)) - (1-distance_heuristic_corner(piece_positions, 2) )
         normalized_h2 = piece_count_heuristic(piece_positions, 1) / len(player_1_starting_area) - piece_count_heuristic(piece_positions, 2) / len(player_1_starting_area)
-        # normalized_h3 = mobility_heuristic(piece_positions, player) / 120 
-        # +
-        score = (w1 * normalized_h1 + w2 * normalized_h2)
+        normalized_h3 = mobility_heuristic(piece_positions, 1) / 120 -  mobility_heuristic(piece_positions, 2) / 120
+        score = (w1 * normalized_h1 + w2 * normalized_h2 + w3 * normalized_h3 + random.random()/1000)
         calculated_heuristic_values[hashable_board] = score
         heuristical_values_calculated += 1
         return score
@@ -155,9 +154,6 @@ def minimax(piece_positions, depth, is_maximizing, player):
                 min_move = move
         return min_eval, min_move
 
-
-# https://en.wikipedia.org/wiki/Minimax
-
 def alphabeta(piece_positions, depth, alpha, beta, is_maximizing, player, sort=True):
     if depth == 0:
         return get_heuristic_value_for_move(piece_positions), piece_positions
@@ -166,7 +162,7 @@ def alphabeta(piece_positions, depth, alpha, beta, is_maximizing, player, sort=T
         max_eval = float('-inf')
         max_move = None
         valid_moves = list(get_all_valid_moves(piece_positions, player))
-        if depth > 1: valid_moves.sort(key=lambda move: get_heuristic_value_for_move(apply_move(piece_positions, move, player)), reverse=True)
+        if depth > 0: valid_moves.sort(key=lambda move: get_heuristic_value_for_move(apply_move(piece_positions, move, player)), reverse=True)
         for move in valid_moves:
             evaluation, move = alphabeta(apply_move(piece_positions, move, player), depth - 1, alpha, beta, False, get_opponent(player), False)
             if evaluation > max_eval:
@@ -182,7 +178,7 @@ def alphabeta(piece_positions, depth, alpha, beta, is_maximizing, player, sort=T
         min_eval = float('inf')
         min_move = None
         valid_moves = list(get_all_valid_moves(piece_positions, player))
-        if depth > 1:
+        if depth > 0:
             valid_moves.sort(
                 key=lambda move: get_heuristic_value_for_move(apply_move(piece_positions, move, player)))
         for move in valid_moves:
@@ -222,21 +218,23 @@ def apply_move(pieces: list, move, player):
 
 
 def choose_best_move(player_pieces, player, depth=2):
-    global heuristical_values_calculated, heuristical_values_skipped, move_calculations_skipped, turn
+    global heuristical_values_calculated, heuristical_values_skipped, move_calculations_skipped, turn, total_calculations
     heuristical_values_calculated = 0
     heuristical_values_skipped = 0
     move_calculations_skipped = 0
     turn += 1
+    # if turn > 150 :
+    #     input()
     perf_t = time.perf_counter()
-    score, best_move = minimax(player_pieces, depth, True if player == 1 else False, player )
+    # score, best_move = minimax(player_pieces, depth, True if player == 1 else False, player )
 
-    diff = heuristical_values_calculated + heuristical_values_skipped
-    heuristical_values_calculated = 0
-    heuristical_values_skipped = 0
-    move_calculations_skipped = 0
+    # diff = heuristical_values_calculated + heuristical_values_skipped
+    # heuristical_values_calculated = 0
+    # heuristical_values_skipped = 0
+    # move_calculations_skipped = 0
     score, best_move = alphabeta(player_pieces, depth, float('-inf'), float('inf'), True if player == 1 else False, player )
-
-    alphabeta_prune = 100 - diff/(heuristical_values_calculated + heuristical_values_skipped)
+    total_calculations += heuristical_values_skipped + heuristical_values_calculated
+    # alphabeta_prune = 100 - diff/(heuristical_values_calculated + heuristical_values_skipped)
     if best_move is None:
         return None
     from_pos = player_pieces[player].difference(best_move[player])
@@ -247,7 +245,13 @@ def choose_best_move(player_pieces, player, depth=2):
     print(f"Avg time per calculation: {(eval_time / (heuristical_values_skipped + heuristical_values_calculated) * 1000000):.2f}µs", file=sys.stderr)
     print(f"Calculations: {heuristical_values_calculated}", file=sys.stderr)
     print(f"Skipped heuristic calculations: {heuristical_values_skipped}", file=sys.stderr)
-    print(f"Prune percentage: {alphabeta_prune:.2f}% \n", file=sys.stderr)
+    print(f"Average number of calculations per move: {total_calculations/turn}", file=sys.stderr)
+    # print(f"Prune percentage: {alphabeta_prune:.2f}% \n", file=sys.stderr)
+
     return (from_pos.pop(), to_pos.pop())
 
-# def choose_random_move(player_pieces, player):
+def choose_random_move(player_pieces, player):
+    valid_moves = list(get_all_valid_moves(player_pieces, player))
+    return valid_moves[random.randint(0, len(valid_moves)-1)]
+
+
